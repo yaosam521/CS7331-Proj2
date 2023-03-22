@@ -68,11 +68,42 @@ rm(counties_OH_clust,cases_map, deaths_map)
 ### PART II: clustering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Step II-01:  K-Means -------------------------------------------------------------
-cases_to_cluster <- subset(cases_cleaned, select = (c(median_income,
-                                                      income_per_capita,
-                                                      median_age,
-                                                      black_pop_P1000,
-                                                      pop_density_Pkm
-                                                      )))
+# 1- select target columns and scale to Z-scores
+cases_to_cluster <- subset(cases_cleaned,
+                           select = (c(median_income,
+                                       income_per_capita,
+                                       median_age,
+                                       #black_pop_P1000,
+                                       pop_density_Pkm
+                           ))) %>% scale() %>% as_tibble()
+summary(cases_to_cluster)        
+
+# 2- find the number of clusters
+
+# 2-1 Elbow Method: Within-Cluster Sum of Squares
+set.seed(1234)
+ks <- 2:20
+
+WCSS <- sapply(ks, FUN = function(k) {
+  kmeans(cases_to_cluster, centers = k, nstart = 5)$tot.withinss
+})
+
+WCSS_viz <- ggplot(as_tibble(ks, WCSS), aes(ks, WCSS)) + geom_line() +
+  geom_vline(xintercept = 8, color = "red", linetype = 2)
+
+# 2-2 Average Silhouette Width
+d <- dist(cases_to_cluster)
+
+ASW <- sapply(ks, FUN=function(k) {
+  fpc::cluster.stats(d, kmeans(cases_to_cluster, centers=k, nstart = 5)$cluster)$avg.silwidth
+})
+
+best_k <- ks[which.max(ASW)]
+best_k
+
+ASW_viz <- ggplot(as_tibble(ks, ASW), aes(ks, ASW)) + geom_line() +
+  geom_vline(xintercept = best_k, color = "red", linetype = 2)
+
+plot_grid(WCSS_viz, ASW_viz, nrow = 1, ncol = 2)
 
 
