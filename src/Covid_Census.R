@@ -1,7 +1,10 @@
-## Step 1: Loading ----------------------------------------------------------------
+### PART I: cleaning and Visualization ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Step I-1: Loading the Dataset ----------------------------------------------------
 #load the csv file/ check how many missing values do we have
 library("tidyverse")
 library("DT")
+library("cowplot")
 cases <- read_csv("../data/Ohio Covid 03-05 + Census 2020-5yrs.csv")
 cases <- cases %>% mutate_if(is.character, factor)
 cases
@@ -10,7 +13,7 @@ is.na(cases) %>% sum()
 
 
 
-## Step 02: Aggregation and Normalization ------------------------------------------
+## Step I-02: Aggregation and Normalization ----------------------------------------
 cases_filtered <- cases %>% mutate(
   female_under_40_ratio= (female_under_5 +
     female_5_to_9 +
@@ -75,3 +78,33 @@ cases_cleaned <- cases_filtered %>% select(county_name,
 
 rm(cases, cases_filtered)
 cases_cleaned
+
+## Step I-03:  Data visualization [deaths and detected maps] -----------------------
+counties <- as_tibble(map_data("county"))
+counties_OH <- counties %>% dplyr::filter(region == "ohio") %>% 
+  rename(c(county = subregion))
+cases_OH <- cases_cleaned %>% mutate(county = county_name %>% 
+                                  str_to_lower() %>% str_replace('\\s+county\\s*$', ''))
+
+counties_OH_clust <- counties_OH %>% left_join(cases_OH)
+rm(counties,counties_OH,cases_OH)
+par(mfrow=c(1,2))
+
+deaths_map <- ggplot(counties_OH_clust, aes(long, lat)) + 
+  geom_polygon(aes(group = group, fill = deaths_P1000)) +
+  coord_quickmap() +
+  scale_fill_continuous(type = "viridis") +
+  labs(title = "Deaths in Ohio State", fill = "Deaths per 1000")
+cases_map <- ggplot(counties_OH_clust, aes(long, lat)) + 
+  geom_polygon(aes(group = group, fill = confirmed_cases_P1000)) +
+  coord_quickmap() +
+  scale_fill_continuous(type = "viridis") +
+  labs(title = "Cases in Ohio State", fill = "Cases per 1000")
+
+plot_grid(deaths_map, cases_map, nrow = 1, ncol = 2)
+
+### PART II: clustering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Step II-01:  K-Means -------------------------------------------------------------
+
+
