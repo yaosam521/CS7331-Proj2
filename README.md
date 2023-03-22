@@ -24,7 +24,7 @@ The dataset was pulled dataset (located in the data folder) correspands to 3/5/2
 To make sure that the pulled results corresponds only to Ohio counties, a state condition was added to the query.
 
 The final query:
-
+```
 SELECT *
 FROM `bigquery-public-data.covid19_usafacts.summary` covid19
 JOIN `bigquery-public-data.census_bureau_acs.county_2020_5yr` acs
@@ -32,5 +32,5 @@ ON covid19.county_fips_code = acs.geo_id
 JOIN bigquery-public-data.geo_us_boundaries.counties geo
 ON geo.county_fips_code=acs.geo_id
 WHERE date = DATE_SUB(CURRENT_DATE(), INTERVAL 17 day) and state="OH"
-
+```
 Note: The interval of days can be increased/decreased to find previous/newer dates records if desired.
