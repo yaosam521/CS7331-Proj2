@@ -3,8 +3,10 @@
 ## Step I-01: Loading the Dataset ----------------------------------------------------
 #load the csv file/ check how many missing values do we have
 library("tidyverse")
+library("ggrepel")
 library("DT")
 library("NbClust")
+library("dbscan")
 cases <- read_csv("../data/Ohio Covid 03-05 + Census 2020-5yrs + Geo Boundaries.csv")
 cases <- cases %>% mutate_if(is.character, factor)
 cases
@@ -117,13 +119,13 @@ cases_map <- ggplot(counties_OH_clust, aes(long, lat)) +
   labs(title = "Cases in Ohio State", fill = "Cases per 1000")
 
 cowplot::plot_grid(deaths_map, cases_map, nrow = 1, ncol = 2)
-rm(counties_OH_clust,cases_map, deaths_map)
+rm(cases_map, deaths_map)
 
 ### PART II: clustering ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Step II-01:  Prepare Clusters ----------------------------------------------------
 
-# 1. select attributes and scale the values to Z-scores
+# 1. select attributes and scale the values to Z-scores ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 subset01_to_cluster <- subset(cases_cleaned, select = ( c(
     # gender/Ethnicity and age
@@ -139,6 +141,7 @@ subset01_to_cluster <- subset(cases_cleaned, select = ( c(
     # financial related
   income_per_capita
   ))) %>% scale() %>% as_tibble()
+subset01_to_cluster <- subset01_to_cluster %>% add_column(county_name = cases_cleaned$county_name) 
 summary(subset01_to_cluster)  
 
 subset02_to_cluster <- subset(cases_cleaned, select = ( c(
@@ -152,47 +155,159 @@ subset02_to_cluster <- subset(cases_cleaned, select = ( c(
     # financial related
   median_income
 ))) %>% scale() %>% as_tibble()
+subset02_to_cluster <- subset02_to_cluster %>% add_column(county_name = cases_cleaned$county_name)
 summary(subset02_to_cluster)
 
-# 2. select attributes and scale the values to Z-scores
+# 2. perform a PCA analysis and remove outliers ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+# a- subset 01:
+PCA <- subset01_to_cluster %>% select(-county_name) %>% prcomp()
+
+PCA <- as_tibble(PCA$x)  %>% add_column(county_name = cases_cleaned$county_name)
+
+lof <- lof(as_tibble(PCA$PC1,PCA$PC2), minPts= 10)
+ggplot(PCA %>% add_column(lof = lof), aes(PC1, PC2, color = lof)) +
+  geom_point() + scale_color_gradient(low = "gray", high = "red")+
+  geom_text_repel(aes(label = county_name), vjust = -1)
+
+ggplot(PCA %>% add_column(outlier = lof >= 5), aes(PC1, PC2, color = outlier)) +
+  geom_point()+
+  geom_text_repel(aes(label = county_name), vjust = -1)
+
+subset01_to_cluster <- subset01_to_cluster %>% filter(lof < 5) 
+
+# b- subset 02:
+PCA <- subset02_to_cluster %>% select(-county_name) %>% prcomp()
+
+PCA <- as_tibble(PCA$x)  %>% add_column(county_name = cases_cleaned$county_name)
+
+lof <- lof(as_tibble(PCA$PC1,PCA$PC2), minPts= 10)
+ggplot(PCA %>% add_column(lof = lof), aes(PC1, PC2, color = lof)) +
+  geom_point() + scale_color_gradient(low = "gray", high = "red")+
+  geom_text_repel(aes(label = county_name), vjust = -1)
+
+ggplot(PCA %>% add_column(outlier = lof >= 1.75), aes(PC1, PC2, color = outlier)) +
+  geom_point()+
+  geom_text_repel(aes(label = county_name), vjust = -1)
+
+subset02_to_cluster <- subset02_to_cluster %>% filter(lof < 1.75) 
+
+
+rm(PCA, lof)
 
 ## Step II-02:  K-Means -------------------------------------------------------------
 
-     
-
 # 1- find the number of clusters
+# A- Subset 01:
+# A-1-1 Elbow Method: Within-Cluster Sum of Squares
+set.seed(1234)
+ks <- 2:10
 
-# 1-1 Elbow Method: Within-Cluster Sum of Squares
+WCSS <- sapply(ks, FUN = function(k) {
+  kmeans(subset01_to_cluster %>% select(-county_name), centers = k, nstart = 1000)$tot.withinss
+})
+
+WCSS_viz <- ggplot(as_tibble(ks, WCSS), aes(ks, WCSS)) + geom_line() +
+  geom_vline(xintercept = 8, color = "red", linetype = 2)+
+  geom_vline(xintercept = 7, color = "blue", linetype = 2)
+
+# A-1-2 Average Silhouette Width
+d <- dist(subset01_to_cluster %>% select(-county_name))
+
+
+ASW <- sapply(ks, FUN=function(k) {
+  fpc::cluster.stats(d, kmeans(subset01_to_cluster %>% select(-county_name), centers=k, nstart = 1000)$cluster)$avg.silwidth
+})
+
+ASW_viz <- ggplot(as_tibble(ks, ASW), aes(ks, ASW)) + geom_line() +
+  geom_vline(xintercept = 8, color = "red", linetype = 2)+
+  geom_vline(xintercept = 7, color = "blue", linetype = 2)
+
+cowplot::plot_grid(WCSS_viz, ASW_viz, nrow = 1, ncol = 2)
+
+k01=7
+km01=kmeans(subset01_to_cluster %>% select(-county_name), centers = k01, nstart = 1000)
+
+# B- Subset 02:
+# B-1-1 Elbow Method: Within-Cluster Sum of Squares
 set.seed(1234)
 ks <- 2:20
 
 WCSS <- sapply(ks, FUN = function(k) {
-  kmeans(cases_to_cluster, centers = k, nstart = 5)$tot.withinss
+  kmeans(subset02_to_cluster %>% select(-county_name), centers = k, nstart = 1000)$tot.withinss
 })
 
 WCSS_viz <- ggplot(as_tibble(ks, WCSS), aes(ks, WCSS)) + geom_line() +
   geom_vline(xintercept = 9, color = "red", linetype = 2)+
-  geom_vline(xintercept = 5, color = "blue", linetype = 2)
+  geom_vline(xintercept = 7, color = "blue", linetype = 2)
 
-# 1-2 Average Silhouette Width
-d <- dist(cases_to_cluster)
+# A-1-2 Average Silhouette Width
+d <- dist(subset02_to_cluster %>% select(-county_name))
 
 
 ASW <- sapply(ks, FUN=function(k) {
-  fpc::cluster.stats(d, kmeans(cases_to_cluster, centers=k, nstart = 100)$cluster)$avg.silwidth
+  fpc::cluster.stats(d, kmeans(subset02_to_cluster %>% select(-county_name), centers=k, nstart = 1000)$cluster)$avg.silwidth
 })
-
-best_k <- ks[which.max(ASW)]
-best_k
 
 ASW_viz <- ggplot(as_tibble(ks, ASW), aes(ks, ASW)) + geom_line() +
   geom_vline(xintercept = 9, color = "red", linetype = 2)+
-  geom_vline(xintercept = 5, color = "blue", linetype = 2)
+  geom_vline(xintercept = 7, color = "blue", linetype = 2)
 
-plot_grid(WCSS_viz, ASW_viz, nrow = 1, ncol = 2)
+cowplot::plot_grid(WCSS_viz, ASW_viz, nrow = 1, ncol = 2)
 
-#NbClust(data = cases_to_cluster, diss = NULL, distance = "euclidean", min.nc = 2, max.nc = 15,
+k02=9
+km02=kmeans(subset02_to_cluster %>% select(-county_name), centers = k02, nstart = 1000)
+
+
+#NbClust(data = subset02_to_cluster, diss = NULL, distance = "euclidean", min.nc = 2, max.nc = 15,
 #        method = "kmeans", index = "all", alphaBeale = 0.1)
+
+# displaying details of the cluster:
+ggplot(pivot_longer(as_tibble(km01$centers,  rownames = "cluster"), 
+                    cols = colnames(km01$centers)), 
+                    aes(y = name, x = value)) +
+                    geom_bar(stat = "identity") +
+                    facet_grid(rows = vars(cluster))
+ggplot(pivot_longer(as_tibble(km02$centers,  rownames = "cluster"), 
+                    cols = colnames(km02$centers)), 
+                    aes(y = name, x = value)) +
+                    geom_bar(stat = "identity") +
+                    facet_grid(rows = vars(cluster))
+
+# Last step: visualize the clusters in small adjacent maps:
+
+counties <- as_tibble(map_data("county"))
+counties_OH <- counties %>% dplyr::filter(region == "ohio") %>% 
+  rename(c(county = subregion))
+
+#a. first subset
+
+cases_OH <- subset01_to_cluster %>% mutate(county = county_name %>% 
+                                  str_to_lower() %>% str_replace('\\s+county\\s*$', ''))
+
+counties_OH_clust <- counties_OH %>% left_join(cases_OH %>% 
+                                                 add_column(cluster = factor(km01$cluster)))
+km01_viz <- ggplot(counties_OH_clust, aes(long, lat)) + 
+  geom_polygon(aes(group = group, fill = cluster)) +
+  coord_quickmap() + 
+  scale_fill_viridis_d() + 
+  theme_minimal()+
+  labs(title = "Clusters", subtitle = "Kmeans [Subset 01]")
+
+#b. second subset
+
+cases_OH <- subset02_to_cluster %>% mutate(county = county_name %>% 
+                                             str_to_lower() %>% str_replace('\\s+county\\s*$', ''))
+
+counties_OH_clust <- counties_OH %>% left_join(cases_OH %>% 
+                                                 add_column(cluster = factor(km02$cluster)))
+km02_viz <- ggplot(counties_OH_clust, aes(long, lat)) + 
+  geom_polygon(aes(group = group, fill = cluster)) +
+  coord_quickmap() + 
+  scale_fill_viridis_d() + 
+  theme_minimal()+
+  labs(title = "Clusters", subtitle = "Kmeans [Subset 02]")
+
+cowplot::plot_grid(km01_viz, km02_viz, nrow = 1, ncol = 2)
 
 ## Step II-03:  Hierarchical --------------------------------------------------------
 
