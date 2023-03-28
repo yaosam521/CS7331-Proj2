@@ -436,6 +436,22 @@ hc02_w_viz <- ggplot(counties_OH_clust, aes(long, lat)) +
 
 cowplot::plot_grid(hc01_w_viz, hc02_w_viz, nrow = 1, ncol = 2)
 
+#Visualizing the Distances
+library(seriation)
+
+#Distance Matrices
+dissplot(d_h, labels = hc_1_complete$cluster, options=list(main="Complete 01"))
+dissplot(d_h_2, labels = hc_2_complete$cluster, options=list(main="Complete 02"))
+dissplot(d_h_ward, labels = hc_1_wards$cluster, options=list(main="Wards Method 01"))
+dissplot(d_h_2_ward, labels = hc_2_wards$cluster, options=list(main="Wards Method 02"))
+
+library(cluster)
+#Silhouette Plot for Hierarchical
+fviz_silhouette(silhouette(cutree(hc_1_complete, k = 7), d_h))
+fviz_silhouette(silhouette(cutree(hc_2_complete, k = 9), d_h_2))
+fviz_silhouette(silhouette(cutree(hc_1_wards, k = 7), d_h_ward))
+fviz_silhouette(silhouette(cutree(hc_2_wards, k = 9), d_h_2_ward))
+
 # Step 4: DBSCAN ---------------------------------------------------------------
 library(dbscan)
 
