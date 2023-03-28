@@ -327,6 +327,7 @@ subset01_to_cluster <- subset(cases_cleaned, select = ( c(
   income_per_capita
 ))) %>% scale() %>% as_tibble()
 subset01_to_cluster <- subset01_to_cluster %>% add_column(county_name = cases_cleaned$county_name) 
+summary(subset01_to_cluster)
 
 subset02_to_cluster <- subset(cases_cleaned, select = ( c(
   # gender/Ethnicity and age
@@ -340,6 +341,7 @@ subset02_to_cluster <- subset(cases_cleaned, select = ( c(
   median_income
 ))) %>% scale() %>% as_tibble()
 subset02_to_cluster <- subset02_to_cluster %>% add_column(county_name = cases_cleaned$county_name)
+summary(subset02_to_cluster)
 
 #Step 2: Perform the Clusters
 
@@ -433,4 +435,47 @@ hc02_w_viz <- ggplot(counties_OH_clust, aes(long, lat)) +
   labs(title = "Hierarchical Clusters", subtitle = "Ward's [Subset 02]")
 
 cowplot::plot_grid(hc01_w_viz, hc02_w_viz, nrow = 1, ncol = 2)
+
+# Step 4: DBSCAN ---------------------------------------------------------------
+library(dbscan)
+
+#for the KNN Graph, I am choosing k=1 because I want each cluster to have a minimum points of 2
+knn_01 <- kNNdistplot(subset01_to_cluster[,1:9],k=1)
+abline(h = 2.7, col = "red")
+
+knn_02 <- kNNdistplot(subset02_to_cluster[,1:6],k=1)
+abline(h = 1.8, col = "red")
+
+#Eps for subset 1 = 2.7, eps for subset2 = 1.8
+
+db01 <- dbscan(subset01_to_cluster[,1:9],eps=2.7,minPts = 2)
+db02 <- dbscan(subset02_to_cluster[,1:6],eps=1.8,minPts=2)
+
+
+#Map Subset 1 Cluster
+counties <- as_tibble(map_data("county"))
+counties_OH <- counties %>% dplyr::filter(region == "ohio") %>% 
+  rename(c(county = subregion))
+
+counties_OH_clust <- counties_OH %>% left_join(cases_OH %>% 
+                                                 add_column(cluster = factor(db01$cluster)))
+db01_viz <- ggplot(counties_OH_clust, aes(long, lat)) + 
+  geom_polygon(aes(group = group, fill = cluster)) +
+  coord_quickmap() + 
+  scale_fill_viridis_d() + 
+  theme_minimal()+
+  labs(title = "DB Scan", subtitle = "Subset 01")
+
+#Map Subset 2 Cluster
+
+counties_OH_clust <- counties_OH %>% left_join(cases_OH %>% 
+                                                 add_column(cluster = factor(db02$cluster)))
+db02_viz <- ggplot(counties_OH_clust, aes(long, lat)) + 
+  geom_polygon(aes(group = group, fill = cluster)) +
+  coord_quickmap() + 
+  scale_fill_viridis_d() + 
+  theme_minimal()+
+  labs(title = "DB Scan", subtitle = "Subset 02")
+
+cowplot::plot_grid(db01_viz, db02_viz, nrow = 1, ncol = 2)
 
