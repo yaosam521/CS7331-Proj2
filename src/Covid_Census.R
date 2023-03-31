@@ -327,7 +327,10 @@ subset01_to_cluster <- subset(cases_cleaned, select = ( c(
   income_per_capita
 ))) %>% scale() %>% as_tibble()
 subset01_to_cluster <- subset01_to_cluster %>% add_column(county_name = cases_cleaned$county_name) 
-summary(subset01_to_cluster)
+df_subset01_to_cluster <- as.data.frame(subset01_to_cluster)
+rownames(df_subset01_to_cluster) <- df_subset01_to_cluster$county_name
+df_subset01_to_cluster <- df_subset01_to_cluster[,1:9]
+head(df_subset01_to_cluster)
 
 subset02_to_cluster <- subset(cases_cleaned, select = ( c(
   # gender/Ethnicity and age
@@ -341,40 +344,62 @@ subset02_to_cluster <- subset(cases_cleaned, select = ( c(
   median_income
 ))) %>% scale() %>% as_tibble()
 subset02_to_cluster <- subset02_to_cluster %>% add_column(county_name = cases_cleaned$county_name)
-summary(subset02_to_cluster)
+df_subset02_to_cluster <- as.data.frame(subset02_to_cluster)
+rownames(df_subset02_to_cluster) <- df_subset02_to_cluster$county_name
+df_subset02_to_cluster <- df_subset02_to_cluster[,1:6]
+head(df_subset02_to_cluster)
 
-#Step 2: Perform the Clusters
-
+#Step 2: Perform the Clusters --------------------------------------------------
+library(ggdendro)
 # Complete Method
-d_h <- dist(subset01_to_cluster)
+d_h <- dist(df_subset01_to_cluster)
 hc_1_complete <- hclust(d_h, method='complete')
-plot(hc_1_complete, hang = -1)
+ggdendrogram(hc_1_complete, rotate = TRUE, size = 4, theme_dendro = FALSE, color = "red")
 
 
-d_h_2 <- dist(subset02_to_cluster)
+d_h_2 <- dist(df_subset02_to_cluster)
 hc_2_complete <- hclust(d_h_2, method='complete')
 plot(hc_2_complete, hang = -1)
+ggdendrogram(hc_2_complete, rotate = TRUE, size = 4, theme_dendro = FALSE, color = "red")
 
 
 # Ward's Method
-d_h_ward <- dist(subset01_to_cluster)
+d_h_ward <- dist(df_subset01_to_cluster)
 hc_1_wards <- hclust(d_h, method='ward.D2')
 plot(hc_1_wards, hang = -1)
+ggdendrogram(hc_1_wards, rotate = TRUE, size = 4, theme_dendro = FALSE, color = "red")
 
-d_h_2_ward <- dist(subset02_to_cluster)
+d_h_2_ward <- dist(df_subset02_to_cluster)
 hc_2_wards <- hclust(d_h_2, method='ward.D2')
 plot(hc_2_wards, hang = -1)
+ggdendrogram(hc_2_wards, rotate = TRUE, size = 4, theme_dendro = FALSE, color = "red")
+
+#Code Derived from "https://uc-r.github.io/kmeans_clustering#gap"
+
+# Decided on NbClust 
+hclust <- NbClust(data=df_subset01_to_cluster,method="complete",index="silhouette")
+print(hclust$Best.nc)
+
+hclust <- NbClust(data=df_subset02_to_cluster,method="complete",index="silhouette")
+print(hclust$Best.nc)
+
+hclust <- NbClust(data=df_subset01_to_cluster,method="ward.D2",index="silhouette")
+print(hclust$Best.nc)
+
+hclust <- NbClust(data=df_subset02_to_cluster,method="ward.D2",index="silhouette")
+print(hclust$Best.nc)
 
 library(factoextra)
 
-#Cluster Numbers are based on values extracted from k-means
-fviz_dend(hc_1_complete,k=7,show_labels = TRUE, main ="Hierarchical, Complete, Subset 1")
-fviz_dend(hc_2_complete,k=9,show_labels = TRUE, main ="Hierarchical, Complete, Subset 2")
+fviz_dend(hc_1_complete,k=2,show_labels = TRUE, main ="Hierarchical, Complete, Subset 1")
+fviz_dend(hc_2_complete,k=3,show_labels = TRUE, main ="Hierarchical, Complete, Subset 2")
 
-fviz_dend(hc_1_wards,k=7,show_labels = TRUE, main ="Hierarchical, Wards, Subset 1")
-fviz_dend(hc_2_wards,k=9,show_labels = TRUE, main ="Hierarchical, Wards, Subset 2")
+fviz_dend(hc_1_wards,k=2,show_labels = TRUE, main ="Hierarchical, Wards, Subset 1")
+fviz_dend(hc_2_wards,k=3,show_labels = TRUE, main ="Hierarchical, Wards, Subset 2")
 
-cases_OH <- subset01_to_cluster %>% mutate(county = county_name %>% 
+df_subset01_to_cluster <- df_subset01_to_cluster %>% add_column(county_name = cases_cleaned$county_name) 
+
+cases_OH <- df_subset01_to_cluster %>% mutate(county = county_name %>% 
                                              str_to_lower() %>% str_replace('\\s+county\\s*$', ''))
 
 #Visualizing Hierarchical in Map
@@ -384,7 +409,7 @@ counties <- as_tibble(map_data("county"))
 counties_OH <- counties %>% dplyr::filter(region == "ohio") %>% 
   rename(c(county = subregion))
 
-clusters <- cutree(hc_1_complete, k = 7)
+clusters <- cutree(hc_1_complete, k = 2)
 
 counties_OH_clust <- counties_OH %>% left_join(cases_OH %>% 
                                                  add_column(cluster = factor(clusters)))
@@ -396,7 +421,9 @@ hc01_c_viz <- ggplot(counties_OH_clust, aes(long, lat)) +
   labs(title = "Hierarchical Clusters", subtitle = "Complete [Subset 01]")
 
 #Subset 2
-clusters <- cutree(hc_2_complete, k = 9)
+clusters <- cutree(hc_2_complete, k = 3)
+
+df_subset02_to_cluster <- df_subset02_to_cluster %>% add_column(county_name = cases_cleaned$county_name) 
 
 counties_OH_clust <- counties_OH %>% left_join(cases_OH %>% 
                                                  add_column(cluster = factor(clusters)))
@@ -411,7 +438,7 @@ cowplot::plot_grid(hc01_c_viz, hc02_c_viz, nrow = 1, ncol = 2)
 
 #Plotting Ward's Method --------------------------------------------------------
 #Subset 01
-clusters <- cutree(hc_1_wards, k = 7)
+clusters <- cutree(hc_1_wards, k = 2)
 
 counties_OH_clust <- counties_OH %>% left_join(cases_OH %>% 
                                                  add_column(cluster = factor(clusters)))
@@ -422,7 +449,7 @@ hc01_w_viz <- ggplot(counties_OH_clust, aes(long, lat)) +
   theme_minimal()+
   labs(title = "Hierarchical Clusters", subtitle = "Ward's [Subset 01]")
 
-clusters <- cutree(hc_2_wards, k = 9)
+clusters <- cutree(hc_2_wards, k = 3)
 
 #Subset 2
 counties_OH_clust <- counties_OH %>% left_join(cases_OH %>% 
@@ -447,10 +474,10 @@ dissplot(d_h_2_ward, labels = hc_2_wards$cluster, options=list(main="Wards Metho
 
 library(cluster)
 #Silhouette Plot for Hierarchical
-fviz_silhouette(silhouette(cutree(hc_1_complete, k = 7), d_h))
-fviz_silhouette(silhouette(cutree(hc_2_complete, k = 9), d_h_2))
-fviz_silhouette(silhouette(cutree(hc_1_wards, k = 7), d_h_ward))
-fviz_silhouette(silhouette(cutree(hc_2_wards, k = 9), d_h_2_ward))
+fviz_silhouette(silhouette(cutree(hc_1_complete, k = 2), d_h))
+fviz_silhouette(silhouette(cutree(hc_2_complete, k = 3), d_h_2))
+fviz_silhouette(silhouette(cutree(hc_1_wards, k = 2), d_h_ward))
+fviz_silhouette(silhouette(cutree(hc_2_wards, k = 3), d_h_2_ward))
 
 # Step 4: DBSCAN ---------------------------------------------------------------
 library(dbscan)
@@ -464,8 +491,8 @@ abline(h = 1.8, col = "red")
 
 #Eps for subset 1 = 2.7, eps for subset2 = 1.8
 
-db01 <- dbscan(subset01_to_cluster[,1:9],eps=2.7,minPts = 2)
-db02 <- dbscan(subset02_to_cluster[,1:6],eps=1.8,minPts=2)
+db01 <- dbscan(subset01_to_cluster[,1:9],eps=3.5,minPts = 2)
+db02 <- dbscan(subset02_to_cluster[,1:6],eps=1.1,minPts=2)
 
 
 #Map Subset 1 Cluster
