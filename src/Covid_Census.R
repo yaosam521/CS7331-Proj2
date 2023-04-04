@@ -354,25 +354,40 @@ library(ggdendro)
 # Complete Method
 d_h <- dist(df_subset01_to_cluster)
 hc_1_complete <- hclust(d_h, method='complete')
-ggdendrogram(hc_1_complete, rotate = TRUE, size = 4, theme_dendro = FALSE, color = "red")
+ggdendrogram(hc_1_complete, 
+             rotate = TRUE, 
+             theme_dendro = FALSE, 
+             color = "red") +
+             labs(title="Hierarchical Clusters", subtitle = "Complete - Subset 01")
 
 
 d_h_2 <- dist(df_subset02_to_cluster)
 hc_2_complete <- hclust(d_h_2, method='complete')
-plot(hc_2_complete, hang = -1)
-ggdendrogram(hc_2_complete, rotate = TRUE, size = 4, theme_dendro = FALSE, color = "red")
+ggdendrogram(hc_2_complete, 
+             rotate = TRUE, 
+             theme_dendro = FALSE, 
+             color = "red") +
+             labs(title="Hierarchical Clusters", subtitle = "Complete - Subset 02")
 
 
 # Ward's Method
 d_h_ward <- dist(df_subset01_to_cluster)
 hc_1_wards <- hclust(d_h, method='ward.D2')
-plot(hc_1_wards, hang = -1)
-ggdendrogram(hc_1_wards, rotate = TRUE, size = 4, theme_dendro = FALSE, color = "red")
+ggdendrogram(hc_1_wards, 
+             rotate = TRUE, 
+             size = 4, 
+             theme_dendro = FALSE, 
+             color = "red") +
+             labs(title="Hierarchical Clusters", subtitle = "Ward's - Subset 01")
 
 d_h_2_ward <- dist(df_subset02_to_cluster)
 hc_2_wards <- hclust(d_h_2, method='ward.D2')
-plot(hc_2_wards, hang = -1)
-ggdendrogram(hc_2_wards, rotate = TRUE, size = 4, theme_dendro = FALSE, color = "red")
+ggdendrogram(hc_2_wards, 
+             rotate = TRUE, 
+             size = 4, 
+             theme_dendro = FALSE, 
+             color = "red") +
+             labs(title="Hierarchical Clusters", subtitle = "Ward's - Subset 02")
 
 #Code Derived from "https://uc-r.github.io/kmeans_clustering#gap"
 
@@ -391,11 +406,21 @@ print(hclust$Best.nc)
 
 library(factoextra)
 
-fviz_dend(hc_1_complete,k=2,show_labels = TRUE, main ="Hierarchical, Complete, Subset 1")
-fviz_dend(hc_2_complete,k=3,show_labels = TRUE, main ="Hierarchical, Complete, Subset 2")
+p <- fviz_dend(hc_1_complete,k=2,rotate = TRUE, main ="Hierarchical, Complete, Subset 1")
+p$layers[[2]]$data$angle <- 0
+p
 
-fviz_dend(hc_1_wards,k=2,show_labels = TRUE, main ="Hierarchical, Wards, Subset 1")
-fviz_dend(hc_2_wards,k=3,show_labels = TRUE, main ="Hierarchical, Wards, Subset 2")
+p <- fviz_dend(hc_2_complete,k=3,rotate = TRUE, main ="Hierarchical, Complete, Subset 2")
+p$layers[[2]]$data$angle <- 0
+p
+
+p <- fviz_dend(hc_1_wards,k=2,rotate = TRUE, main ="Hierarchical, Wards, Subset 1")
+p$layers[[2]]$data$angle <- 0
+p
+
+p <- fviz_dend(hc_2_wards,k=3,rotate = TRUE, main ="Hierarchical, Wards, Subset 2")
+p$layers[[2]]$data$angle <- 0
+p
 
 df_subset01_to_cluster <- df_subset01_to_cluster %>% add_column(county_name = cases_cleaned$county_name) 
 
@@ -469,15 +494,15 @@ library(seriation)
 #Distance Matrices
 dissplot(d_h, labels = hc_1_complete$cluster, options=list(main="Complete 01"))
 dissplot(d_h_2, labels = hc_2_complete$cluster, options=list(main="Complete 02"))
-dissplot(d_h_ward, labels = hc_1_wards$cluster, options=list(main="Wards Method 01"))
-dissplot(d_h_2_ward, labels = hc_2_wards$cluster, options=list(main="Wards Method 02"))
+dissplot(d_h_ward, labels = hc_1_wards$cluster, options=list(main="Ward's Method 01"))
+dissplot(d_h_2_ward, labels = hc_2_wards$cluster, options=list(main="Ward's Method 02"))
 
 library(cluster)
 #Silhouette Plot for Hierarchical
-fviz_silhouette(silhouette(cutree(hc_1_complete, k = 2), d_h))
-fviz_silhouette(silhouette(cutree(hc_2_complete, k = 3), d_h_2))
-fviz_silhouette(silhouette(cutree(hc_1_wards, k = 2), d_h_ward))
-fviz_silhouette(silhouette(cutree(hc_2_wards, k = 3), d_h_2_ward))
+fviz_silhouette(silhouette(cutree(hc_1_complete, k = 2), d_h), main = "Complete 01")
+fviz_silhouette(silhouette(cutree(hc_2_complete, k = 3), d_h_2), main = "Complete 02")
+fviz_silhouette(silhouette(cutree(hc_1_wards, k = 2), d_h_ward), main = "Ward's Method 01")
+fviz_silhouette(silhouette(cutree(hc_2_wards, k = 3), d_h_2_ward), main = "Ward's Method 02")
 
 # Step 4: DBSCAN ---------------------------------------------------------------
 library(dbscan)
@@ -491,8 +516,8 @@ abline(h = 1.8, col = "red")
 
 #Eps for subset 1 = 2.7, eps for subset2 = 1.8
 
-db01 <- dbscan(subset01_to_cluster[,1:9],eps=3.5,minPts = 2)
-db02 <- dbscan(subset02_to_cluster[,1:6],eps=1.1,minPts=2)
+db01 <- dbscan(subset01_to_cluster[,1:9],eps=2.7,minPts = 2)
+db02 <- dbscan(subset02_to_cluster[,1:6],eps=1.8,minPts=2)
 
 
 #Map Subset 1 Cluster
@@ -521,4 +546,272 @@ db02_viz <- ggplot(counties_OH_clust, aes(long, lat)) +
   labs(title = "DB Scan", subtitle = "Subset 02")
 
 cowplot::plot_grid(db01_viz, db02_viz, nrow = 1, ncol = 2)
+
+# Part 05: External Validation -------------------------------------------------
+entropy <- function(cluster, truth) {
+  k <- max(cluster, truth)
+  cluster <- factor(cluster, levels = 1:k)
+  truth <- factor(truth, levels = 1:k)
+  w <- table(cluster)/length(cluster)
+  
+  cnts <- sapply(split(truth, cluster), table)
+  p <- sweep(cnts, 1, rowSums(cnts), "/")
+  p[is.nan(p)] <- 0
+  e <- -p * log(p, 2)
+  
+  sum(w * rowSums(e, na.rm = TRUE))
+}
+
+purity <- function(cluster, truth) {
+  k <- max(cluster, truth)
+  cluster <- factor(cluster, levels = 1:k)
+  truth <- factor(truth, levels = 1:k)
+  w <- table(cluster)/length(cluster)
+  
+  cnts <- sapply(split(truth, cluster), table)
+  p <- sweep(cnts, 1, rowSums(cnts), "/")
+  p[is.nan(p)] <- 0
+  
+  sum(w * apply(p, 1, max))
+}
+
+ground_truth_km01 <- cases_cleaned %>% select(confirmed_cases_P1000,county_name)
+ground_truth_km01 <- ground_truth_km01 %>% filter(county_name != "Noble County")
+d_km01 <- dist(subset01_to_cluster %>% select(-county_name))
+print(ground_truth_km01)
+print(km01$cluster)
+print(typeof(d_km01))
+print(ground_truth_km01%>% select(-county_name))
+
+#Ground truth for hierarchical complete subset 1--------------------------------
+ground_truth_h_comp_1 <- cases_cleaned$confirmed_cases_P1000
+d_hc01_complete <- d_h
+hcut_h_1 <- cutree(hc_1_complete, k = 2)
+
+#Ground truth for hierarchical complete subset 2--------------------------------
+ground_truth_h_comp_2 <- cases_cleaned$confirmed_cases_P1000
+d_hc02_complete <- d_h_2
+hcut_h_2 <- cutree(hc_2_complete, k = 3)
+
+#Ground truth for hierarchical wards subset 1-----------------------------------
+ground_truth_h_wards_1 <- cases_cleaned$confirmed_cases_P1000
+d_hc01_wards <- d_h_ward
+hcut_h_1_ward <- cutree(hc_1_wards, k = 2)
+
+#Ground truth for hierarchical wards subset 2-----------------------------------
+d_hc02_wards <- d_h_2_ward
+hcut_h_2_ward <- cutree(hc_2_wards, k = 3)
+ground_truth_h_wards_2 <- cases_cleaned$confirmed_cases_P1000
+
+#Ground truth for DBSCAN subset 1-----------------------------------------------
+d_db_1 <- dist(subset01_to_cluster)
+dbscan_sub1 <- db01
+ground_truth_db_1 <- cases_cleaned$confirmed_cases_P1000
+
+#Ground truth for DBSCAN subset 1-----------------------------------------------
+d_db_2 <- dist(subset02_to_cluster)
+dbscan_sub2 <- db02
+ground_truth_db_2 <- cases_cleaned$confirmed_cases_P1000
+
+r <- rbind(
+  hierarchical_sub01 = c(
+    unlist(fpc::cluster.stats(d_hc01_complete, 
+                              hcut_h_1, 
+                              ground_truth_h_comp_1, 
+                              compareonly = TRUE)),
+    entropy = entropy(hcut_h_1, ground_truth_h_comp_1),
+    purity = purity(hcut_h_1, ground_truth_h_comp_1)
+  ),
+  hierarchical_sub02 = c(
+    unlist(fpc::cluster.stats(d_hc02_complete, 
+                              hcut_h_2, 
+                              ground_truth_h_comp_2, 
+                              compareonly = TRUE)),
+    entropy = entropy(hcut_h_2, ground_truth_h_comp_2),
+    purity = purity(hcut_h_2, ground_truth_h_comp_2)
+  ),
+  hierarchical_sub01_wards = c(
+    unlist(fpc::cluster.stats(d_hc01_wards, 
+                              hcut_h_1_ward, 
+                              ground_truth_h_wards_1, 
+                              compareonly = TRUE)),
+    entropy = entropy(hcut_h_1_ward, ground_truth_h_wards_1),
+    purity = purity(hcut_h_1_ward, ground_truth_h_wards_1)
+  ),
+  hierarchical_sub02_wards = c(
+    unlist(fpc::cluster.stats(d_hc02_wards, 
+                              hcut_h_2_ward, 
+                              ground_truth_h_wards_2, 
+                              compareonly = TRUE)),
+    entropy = entropy(hcut_h_2_ward, ground_truth_h_wards_2),
+    purity = purity(hcut_h_2_ward, ground_truth_h_wards_2)
+  ),
+  dbscan_sub_01 = c(
+    unlist(fpc::cluster.stats(d_db_1, 
+                              dbscan_sub1$cluster, 
+                              ground_truth_db_1, 
+                              compareonly = TRUE)),
+    entropy = entropy(dbscan_sub1$cluster, ground_truth_db_1),
+    purity = purity(dbscan_sub1$cluster, ground_truth_db_1)
+  ),
+  dbscan_sub_02 = c(
+    unlist(fpc::cluster.stats(d_db_2, 
+                              dbscan_sub2$cluster, 
+                              ground_truth_db_2, 
+                              compareonly = TRUE)),
+    entropy = entropy(dbscan_sub2$cluster, ground_truth_db_2),
+    purity = purity(dbscan_sub2$cluster, ground_truth_db_2)
+  )
+)
+
+r
+
+#Ground truth for hierarchical complete subset 1--------------------------------
+ground_truth_h_comp_1 <- cases_cleaned$deaths_P1000
+d_hc01_complete <- d_h
+hcut_h_1 <- cutree(hc_1_complete, k = 2)
+
+#Ground truth for hierarchical complete subset 2--------------------------------
+ground_truth_h_comp_2 <- cases_cleaned$deaths_P1000
+d_hc02_complete <- d_h_2
+hcut_h_2 <- cutree(hc_2_complete, k = 3)
+
+#Ground truth for hierarchical wards subset 1-----------------------------------
+ground_truth_h_wards_1 <- cases_cleaned$deaths_P1000
+d_hc01_wards <- d_h_ward
+hcut_h_1_ward <- cutree(hc_1_wards, k = 2)
+
+#Ground truth for hierarchical wards subset 2-----------------------------------
+d_hc02_wards <- d_h_2_ward
+hcut_h_2_ward <- cutree(hc_2_wards, k = 3)
+ground_truth_h_wards_2 <- cases_cleaned$deaths_P1000
+
+#Ground truth for DBSCAN subset 1-----------------------------------------------
+d_db_1 <- dist(subset01_to_cluster)
+dbscan_sub1 <- db01
+ground_truth_db_1 <- cases_cleaned$deaths_P1000
+
+#Ground truth for DBSCAN subset 1-----------------------------------------------
+d_db_2 <- dist(subset02_to_cluster)
+dbscan_sub2 <- db02
+ground_truth_db_2 <- cases_cleaned$deaths_P1000
+
+r <- rbind(
+  hierarchical_sub01 = c(
+    unlist(fpc::cluster.stats(d_hc01_complete, 
+                              hcut_h_1, 
+                              ground_truth_h_comp_1, 
+                              compareonly = TRUE)),
+    entropy = entropy(hcut_h_1, ground_truth_h_comp_1),
+    purity = purity(hcut_h_1, ground_truth_h_comp_1)
+  ),
+  hierarchical_sub02 = c(
+    unlist(fpc::cluster.stats(d_hc02_complete, 
+                              hcut_h_2, 
+                              ground_truth_h_comp_2, 
+                              compareonly = TRUE)),
+    entropy = entropy(hcut_h_2, ground_truth_h_comp_2),
+    purity = purity(hcut_h_2, ground_truth_h_comp_2)
+  ),
+  hierarchical_sub01_wards = c(
+    unlist(fpc::cluster.stats(d_hc01_wards, 
+                              hcut_h_1_ward, 
+                              ground_truth_h_wards_1, 
+                              compareonly = TRUE)),
+    entropy = entropy(hcut_h_1_ward, ground_truth_h_wards_1),
+    purity = purity(hcut_h_1_ward, ground_truth_h_wards_1)
+  ),
+  hierarchical_sub02_wards = c(
+    unlist(fpc::cluster.stats(d_hc02_wards, 
+                              hcut_h_2_ward, 
+                              ground_truth_h_wards_2, 
+                              compareonly = TRUE)),
+    entropy = entropy(hcut_h_2_ward, ground_truth_h_wards_2),
+    purity = purity(hcut_h_2_ward, ground_truth_h_wards_2)
+  ),
+  dbscan_sub_01 = c(
+    unlist(fpc::cluster.stats(d_db_1, 
+                              dbscan_sub1$cluster, 
+                              ground_truth_db_1, 
+                              compareonly = TRUE)),
+    entropy = entropy(dbscan_sub1$cluster, ground_truth_db_1),
+    purity = purity(dbscan_sub1$cluster, ground_truth_db_1)
+  ),
+  dbscan_sub_02 = c(
+    unlist(fpc::cluster.stats(d_db_2, 
+                              dbscan_sub2$cluster, 
+                              ground_truth_db_2, 
+                              compareonly = TRUE)),
+    entropy = entropy(dbscan_sub2$cluster, ground_truth_db_2),
+    purity = purity(dbscan_sub2$cluster, ground_truth_db_2)
+  )
+)
+
+r
+
+#TEst---------------------------------------------------------------------------
+library(mlbench)
+set.seed(1234)
+shapes <- mlbench.smiley(n = 500, sd1 = 0.1, sd2 = 0.05)
+
+truth <- as.integer(shapes$class)
+shapes <- scale(shapes$x)
+d <- dist(shapes)
+km <- kmeans(shapes, centers = 7, nstart = 10)
+
+entropy <- function(cluster, truth) {
+  k <- max(cluster, truth)
+  cluster <- factor(cluster, levels = 1:k)
+  truth <- factor(truth, levels = 1:k)
+  w <- table(cluster)/length(cluster)
+  
+  cnts <- sapply(split(truth, cluster), table)
+  p <- sweep(cnts, 1, rowSums(cnts), "/")
+  p[is.nan(p)] <- 0
+  e <- -p * log(p, 2)
+  
+  sum(w * rowSums(e, na.rm = TRUE))
+}
+
+purity <- function(cluster, truth) {
+  k <- max(cluster, truth)
+  cluster <- factor(cluster, levels = 1:k)
+  truth <- factor(truth, levels = 1:k)
+  w <- table(cluster)/length(cluster)
+  
+  cnts <- sapply(split(truth, cluster), table)
+  p <- sweep(cnts, 1, rowSums(cnts), "/")
+  p[is.nan(p)] <- 0
+  
+  sum(w * apply(p, 1, max))
+}
+
+r <- rbind(
+  kmeans_7 = c(
+    unlist(fpc::cluster.stats(d, km$cluster, truth, compareonly = TRUE)),
+    entropy = entropy(km$cluster, truth),
+    purity = purity(km$cluster, truth)
+  )
+)
+r
+
+print(length(d))
+print(length(km$cluster))
+print(length(truth))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
