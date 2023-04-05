@@ -261,6 +261,23 @@ km02=kmeans(subset02_to_cluster %>% select(-county_name), centers = k02, nstart 
 #NbClust(data = subset02_to_cluster, diss = NULL, distance = "euclidean", min.nc = 2, max.nc = 15,
 #        method = "kmeans", index = "all", alphaBeale = 0.1)
 
+# 2.2 showing the deailed diffrences
+details_s1 <- ggplot(pivot_longer(as_tibble(km01$centers,  rownames = "cluster"), 
+                                  cols = colnames(km01$centers)), 
+                     aes(y = name, x = value, fill = cluster)) +
+  geom_bar(stat = "identity") +
+  facet_grid(rows = vars(cluster))+
+  labs(title = "Subset 01")
+
+details_s2 <- ggplot(pivot_longer(as_tibble(km02$centers,  rownames = "cluster"), 
+                                  cols = colnames(km02$centers)), 
+                     aes(y = name, x = value, fill = cluster)) +
+  geom_bar(stat = "identity") +
+  facet_grid(rows = vars(cluster))+
+  labs(title = "Subset 02")
+
+cowplot::plot_grid(details_s1, details_s2,nrow = 1, ncol = 2) # used w=900, h=800 to export
+
 # displaying details of the cluster:
 ggplot(pivot_longer(as_tibble(km01$centers,  rownames = "cluster"), 
                     cols = colnames(km01$centers)), 
@@ -308,6 +325,7 @@ km02_viz <- ggplot(counties_OH_clust, aes(long, lat)) +
   labs(title = "Clusters", subtitle = "Kmeans [Subset 02]")
 
 cowplot::plot_grid(km01_viz, km02_viz, nrow = 1, ncol = 2)
+
 
 ## Step II-03:  Hierarchical --------------------------------------------------------
 
@@ -389,7 +407,20 @@ ggdendrogram(hc_2_wards,
              color = "red") +
              labs(title="Hierarchical Clusters", subtitle = "Ward's - Subset 02")
 
-#Code Derived from "https://uc-r.github.io/kmeans_clustering#gap"
+#Code Derived from "https://uc-r.github.io/hc_clustering"
+
+#-------------------------------------------------------------------------------
+library(factoextra)
+fviz_nbclust(df_subset01_to_cluster, FUN = hcut, method = "silhouette")
+fviz_nbclust(df_subset02_to_cluster, FUN = hcut, method = "silhouette")
+
+fviz_nbclust(df_subset01_to_cluster, FUN = hcut, method = "wss")
+fviz_nbclust(df_subset02_to_cluster, FUN = hcut, method = "wss")
+
+fviz_nbclust(df_subset01_to_cluster, FUN = hcut, method = "gap_stat")
+fviz_nbclust(df_subset02_to_cluster, FUN = hcut, method = "gap_stat")
+
+#-------------------------------------------------------------------------------
 
 # Decided on NbClust 
 hclust <- NbClust(data=df_subset01_to_cluster,method="complete",index="silhouette")
@@ -499,10 +530,10 @@ dissplot(d_h_2_ward, labels = hc_2_wards$cluster, options=list(main="Ward's Meth
 
 library(cluster)
 #Silhouette Plot for Hierarchical
-fviz_silhouette(silhouette(cutree(hc_1_complete, k = 2), d_h), main = "Complete 01")
-fviz_silhouette(silhouette(cutree(hc_2_complete, k = 3), d_h_2), main = "Complete 02")
-fviz_silhouette(silhouette(cutree(hc_1_wards, k = 2), d_h_ward), main = "Ward's Method 01")
-fviz_silhouette(silhouette(cutree(hc_2_wards, k = 3), d_h_2_ward), main = "Ward's Method 02")
+fviz_silhouette(silhouette(cutree(hc_1_complete, k = 2), d_h))
+fviz_silhouette(silhouette(cutree(hc_2_complete, k = 3), d_h_2))
+fviz_silhouette(silhouette(cutree(hc_1_wards, k = 2), d_h_ward))
+fviz_silhouette(silhouette(cutree(hc_2_wards, k = 3), d_h_2_ward))
 
 # Step 4: DBSCAN ---------------------------------------------------------------
 library(dbscan)
@@ -547,6 +578,15 @@ db02_viz <- ggplot(counties_OH_clust, aes(long, lat)) +
 
 cowplot::plot_grid(db01_viz, db02_viz, nrow = 1, ncol = 2)
 
+print(db01)
+
+#Silhouette Plots for DBSCAN----------------------------------------------------
+d_db01 <-dist(subset01_to_cluster)
+d_db02 <-dist(subset02_to_cluster)
+
+fviz_silhouette(silhouette(db01$cluster, d_db01), main = "DBSCAN 01 - Width: 0.59")
+fviz_silhouette(silhouette(db02$cluster, d_db02), main = "DBSCAN 02 - Width: 0.49")
+
 # Part 05: External Validation -------------------------------------------------
 entropy <- function(cluster, truth) {
   k <- max(cluster, truth)
@@ -585,21 +625,21 @@ print(ground_truth_km01%>% select(-county_name))
 
 #Ground truth for hierarchical complete subset 1--------------------------------
 ground_truth_h_comp_1 <- cases_cleaned$confirmed_cases_P1000
-d_hc01_complete <- d_h
+d_hc01_complete <- dist(df_subset01_to_cluster)
 hcut_h_1 <- cutree(hc_1_complete, k = 2)
 
 #Ground truth for hierarchical complete subset 2--------------------------------
 ground_truth_h_comp_2 <- cases_cleaned$confirmed_cases_P1000
-d_hc02_complete <- d_h_2
+d_hc02_complete <- dist(df_subset02_to_cluster)
 hcut_h_2 <- cutree(hc_2_complete, k = 3)
 
 #Ground truth for hierarchical wards subset 1-----------------------------------
 ground_truth_h_wards_1 <- cases_cleaned$confirmed_cases_P1000
-d_hc01_wards <- d_h_ward
+d_hc01_wards <- dist(df_subset01_to_cluster)
 hcut_h_1_ward <- cutree(hc_1_wards, k = 2)
 
 #Ground truth for hierarchical wards subset 2-----------------------------------
-d_hc02_wards <- d_h_2_ward
+d_hc02_wards <- dist(df_subset02_to_cluster)
 hcut_h_2_ward <- cutree(hc_2_wards, k = 3)
 ground_truth_h_wards_2 <- cases_cleaned$confirmed_cases_P1000
 
@@ -749,58 +789,105 @@ r <- rbind(
 
 r
 
-#TEst---------------------------------------------------------------------------
-library(mlbench)
-set.seed(1234)
-shapes <- mlbench.smiley(n = 500, sd1 = 0.1, sd2 = 0.05)
+#Cluster Profiles---------------------------------------------------------------
+pc_sub_1 <- df_subset01_to_cluster %>% select(-county_name) %>% as.matrix() %>% prcomp()
+pc_sub_2 <- df_subset02_to_cluster %>% select(-county_name) %>% as.matrix() %>% prcomp()
 
-truth <- as.integer(shapes$class)
-shapes <- scale(shapes$x)
-d <- dist(shapes)
-km <- kmeans(shapes, centers = 7, nstart = 10)
+subset_1_complete_proj <- as_tibble(pc_sub_1$x) %>% add_column(county_name = df_subset01_to_cluster$county_name) 
+subset_1_complete_proj <- subset_1_complete_proj %>% add_column(Cluster = as.character(cutree(hc_1_complete, k = 2)))
 
-entropy <- function(cluster, truth) {
-  k <- max(cluster, truth)
-  cluster <- factor(cluster, levels = 1:k)
-  truth <- factor(truth, levels = 1:k)
-  w <- table(cluster)/length(cluster)
-  
-  cnts <- sapply(split(truth, cluster), table)
-  p <- sweep(cnts, 1, rowSums(cnts), "/")
-  p[is.nan(p)] <- 0
-  e <- -p * log(p, 2)
-  
-  sum(w * rowSums(e, na.rm = TRUE))
-}
+subset_2_complete_proj <- as_tibble(pc_sub_2$x) %>% add_column(county_name = df_subset02_to_cluster$county_name) 
+subset_2_complete_proj <- subset_2_complete_proj %>% add_column(Cluster = as.character(cutree(hc_2_complete, k = 3)))
 
-purity <- function(cluster, truth) {
-  k <- max(cluster, truth)
-  cluster <- factor(cluster, levels = 1:k)
-  truth <- factor(truth, levels = 1:k)
-  w <- table(cluster)/length(cluster)
-  
-  cnts <- sapply(split(truth, cluster), table)
-  p <- sweep(cnts, 1, rowSums(cnts), "/")
-  p[is.nan(p)] <- 0
-  
-  sum(w * apply(p, 1, max))
-}
+subset_1_wards_proj <- as_tibble(pc_sub_1$x) %>% add_column(county_name = df_subset01_to_cluster$county_name) 
+subset_1_wards_proj <- subset_1_wards_proj %>% add_column(Cluster = as.character(cutree(hc_1_wards, k = 2)))
 
-r <- rbind(
-  kmeans_7 = c(
-    unlist(fpc::cluster.stats(d, km$cluster, truth, compareonly = TRUE)),
-    entropy = entropy(km$cluster, truth),
-    purity = purity(km$cluster, truth)
-  )
-)
-r
+subset_2_wards_proj <- as_tibble(pc_sub_2$x) %>% add_column(county_name = df_subset02_to_cluster$county_name) 
+subset_2_wards_proj <- subset_2_wards_proj %>% add_column(Cluster = as.character(cutree(hc_2_wards, k = 3)))
 
-print(length(d))
-print(length(km$cluster))
-print(length(truth))
+ggplot(subset_1_complete_proj, aes(x = PC1, y = PC2,color=Cluster)) + 
+  geom_point() +
+  ggtitle("Hierarchical Complete - Subset 01")
 
+ggplot(subset_2_complete_proj, aes(x = PC1, y = PC2,color=Cluster)) + 
+  geom_point()+
+  ggtitle("Hierarchical Complete - Subset 02")
 
+ggplot(subset_1_wards_proj, aes(x = PC1, y = PC2,color=Cluster)) + 
+  geom_point()+
+  ggtitle("Hierarchical Wards - Subset 01")
 
+ggplot(subset_2_wards_proj, aes(x = PC1, y = PC2,color=Cluster)) + 
+  geom_point()+
+  ggtitle("Hierarchical Wards - Subset 02")
+
+fviz_cluster(db01$cluster, data=df_subset01_to_cluster, repel = TRUE, ellipse.type = "norm")
+
+# PCA For DBSCAN ---------------------------------------------------------------
+pc_sub_1_db <- subset01_to_cluster %>% select(-county_name) %>% as.matrix() %>% prcomp()
+pc_sub_2_db <- subset02_to_cluster %>% select(-county_name) %>% as.matrix() %>% prcomp()
+
+db01 <- dbscan(subset01_to_cluster[,1:9],eps=2.7,minPts = 2)
+db02 <- dbscan(subset02_to_cluster[,1:6],eps=1.8,minPts=2)
+
+subset_1_db_proj <- as_tibble(pc_sub_1_db$x) %>% add_column(county_name = subset01_to_cluster$county_name) 
+subset_1_db_proj <- subset_1_db_proj %>% add_column(Cluster = as.character(db01$cluster))
+
+subset_2_db_proj <- as_tibble(pc_sub_2_db$x) %>% add_column(county_name = subset02_to_cluster$county_name) 
+subset_2_db_proj <- subset_2_db_proj %>% add_column(Cluster = as.character(db02$cluster))
+
+ggplot(subset_1_db_proj, aes(x = PC1, y = PC2,color=Cluster)) + 
+  geom_point()+
+  ggtitle("DBSCAN - Subset 01")
+
+ggplot(subset_2_db_proj, aes(x = PC1, y = PC2,color=Cluster)) + 
+  geom_point()+
+  ggtitle("DBSCAN - Subset 02")
+
+# Detailed Cluster Profiles DBSCAN----------------------------------------------
+#subset 1
+PCA1 <- subset01_to_cluster %>% select(-county_name) %>% prcomp()
+PCA1 <- as_tibble(PCA1$x)  
+TO_PLOT<- PCA1 %>% select(PC1, PC2)
+
+library(factoextra)
+cluster_01_prof <- fviz_cluster(db01, data = TO_PLOT, centroids = TRUE, repel = TRUE, ellipse.type = "norm")+
+  geom_text(aes(label = ""), alpha = 0)
+
+#subset 2
+PCA2 <- subset02_to_cluster %>% select(-county_name) %>% prcomp()
+PCA2 <- as_tibble(PCA2$x)  
+TO_PLOT<- PCA2 %>% select(PC1, PC2)
+
+cluster_02_prof <-fviz_cluster(db02, data = TO_PLOT, centroids = TRUE, repel = TRUE, ellipse.type = "norm")
+
+cowplot::plot_grid(cluster_01_prof, cluster_02_prof, nrow = 2, ncol = 1)
+
+# Detailed Cluster Profiles Hierarchical----------------------------------------
+#subset 1
+PCA1 <- df_subset01_to_cluster %>% select(-county_name) %>% prcomp()
+PCA1 <- as_tibble(PCA1$x)  
+TO_PLOT<- PCA1 %>% select(PC1, PC2)
+
+#subset 2
+PCA2 <- df_subset02_to_cluster %>% select(-county_name) %>% prcomp()
+PCA2 <- as_tibble(PCA2$x)  
+TO_PLOT<- PCA2 %>% select(PC1, PC2)
+
+h_c_1_clust <- hc_1_complete
+h_c_1_clust$cluster <- hcut_h_1
+
+h_w_1_clust <- hc_1_wards
+h_w_1_clust$cluster <- hcut_h_1_ward
+
+h_c_2_clust <- hc_2_complete
+h_c_2_clust$cluster <- hcut_h_2
+
+h_w_2_clust <- hc_2_wards
+h_w_2_clust$cluster <- hcut_h_2_ward
+
+cluster_01_prof <- fviz_cluster(h_c_1_clust$cluster, data = TO_PLOT, centroids = TRUE, repel = TRUE, ellipse.type = "norm")+
+  geom_text(aes(label = ""), alpha = 0)
 
 
 
